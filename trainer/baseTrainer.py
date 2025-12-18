@@ -133,26 +133,30 @@ class BaseTrainer(ABC):
                 for idx, batch in enumerate(pbar):
                     with torch.autocast(device_type='cuda', dtype=self.dtype):
                         step_metrics = self.train_step(batch)
+                        loss = step_metrics['loss']
                         metrics.update(step_metrics)
 
-                        # 累计梯度
-                        if (self.global_step + 1) % self.gradient_accumulation_steps == 0:
-                            self.scaler.unscale_(self.optimizer)
-                            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
-                            self.scaler.step(self.optimizer)
-                            self.scaler.update()
-                            self.optimizer.zero_grad()
+                    # 反向传播
+                    self.scaler.scale(loss / self.gradient_accumulation_steps).backward()
 
-                        # 定期记录日志到wandb
-                        if (self.global_step + 1) % self.logging_steps == 0:
-                            self.log_metrics(metrics)
+                    # 累计梯度
+                    if (self.global_step + 1) % self.gradient_accumulation_steps == 0:
+                        self.scaler.unscale_(self.optimizer)
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                        self.scaler.step(self.optimizer)
+                        self.scaler.update()
+                        self.optimizer.zero_grad()
 
-                        # 定期保存模型
-                        if (self.global_step + 1) % self.save_steps == 0:
-                            self.save_checkpoint(tag=f"checkpoint-{self.global_step}")
+                    # 定期记录日志到wandb
+                    if (self.global_step + 1) % self.logging_steps == 0:
+                        self.log_metrics(metrics)
 
-                        self.update_progress_bar(pbar, metrics)
-                        self.global_step += 1
+                    # 定期保存模型
+                    if (self.global_step + 1) % self.save_steps == 0:
+                        self.save_checkpoint(tag=f"checkpoint-{self.global_step}")
+
+                    self.update_progress_bar(pbar, metrics)
+                    self.global_step += 1
 
                 if is_main_process():
                     self.save_checkpoint(tag=f"epoch-{self.epoch}")
