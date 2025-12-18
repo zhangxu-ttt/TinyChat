@@ -123,7 +123,7 @@ class BaseTrainer(ABC):
         print_rank0("=" * 80)
 
         self.model.train()
-        metrics = self.build_metrics()
+        metrics = {}
 
         for epoch in range(self.start_epoch, self.num_epochs):
             self.epoch = epoch
@@ -157,16 +157,6 @@ class BaseTrainer(ABC):
                 if is_main_process():
                     self.save_checkpoint(tag=f"epoch-{self.epoch}")
                 self.epoch += 1
-
-    @abstractmethod
-    def build_metrics(self) -> Dict[str, Any]:
-        """
-        构建训练指标字典 - 子类可以重写此方法
-
-        Returns:
-            metrics: 指标字典
-        """
-        raise NotImplementedError
 
     @abstractmethod
     def train_step(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
