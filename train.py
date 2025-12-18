@@ -91,7 +91,7 @@ def main():
         # 忽略 RoPE 的预计算 cos/sin 缓存，这些在每个设备上独立计算且相同
         # 格式：模块路径.buffer名
         ignored_buffers = set()
-        for i in range(args.n_layers):
+        for i in range(model_config.n_layers):
             ignored_buffers.add(f"layers.{i}.attention.rope.cos_cached")
             ignored_buffers.add(f"layers.{i}.attention.rope.sin_cached")
         model._ddp_params_and_buffers_to_ignore = ignored_buffers
