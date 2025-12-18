@@ -106,32 +106,20 @@ def main():
             local_rank=local_rank,
             device=device
         )
-    elif args.task_type == 'sft':
-        trainer = SFTTrainer(
-            config_path=args.config_path,
-            local_rank=args.local_rank
-        )
-    elif args.task_type == 'dpo':
-        trainer = DPOTrainer(
-            config_path=args.config_path,
-            local_rank=args.local_rank
-        )
+    # elif args.task_type == 'sft':
+    #     trainer = SFTTrainer(
+    #         config_path=args.config_path,
+    #         local_rank=args.local_rank
+    #     )
+    # elif args.task_type == 'dpo':
+    #     trainer = DPOTrainer(
+    #         config_path=args.config_path,
+    #         local_rank=args.local_rank
+    #     )
     else:
         raise ValueError(f"不支持的任务类型: {args.task_type}")
-    
-    # 开始训练
-    try:
-        trainer.train()
-    except KeyboardInterrupt:
-        if args.local_rank in [-1, 0]:
-            print("\n训练被用户中断")
-        sys.exit(0)
-    except Exception as e:
-        if args.local_rank in [-1, 0]:
-            print(f"\n训练过程中出错: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+
+    trainer.train()
 
 
 if __name__ == '__main__':

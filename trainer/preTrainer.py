@@ -2,7 +2,7 @@ from typing import Dict
 
 import torch
 from torch.utils.data import Dataset, DataLoader, DistributedSampler
-from baseTrainer import BaseTrainer
+from .baseTrainer import BaseTrainer
 from dataset import TextDataset
 
 class PreTrainer(BaseTrainer):
@@ -43,6 +43,23 @@ class PreTrainer(BaseTrainer):
 
         return dataloader
 
-    def train_step(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        ...
+    def train_step(self, batch: Dict[str, torch.Tensor]) -> dict:
+        x = batch['x']
+        y = batch['y']
+        loss_mask = batch['loss_mask']
+
+        output = self.model(x)
+        loss = output.loss
+
+        accuracy = (output.logits.argmax(dim=-1) == y).float()
+        accuracy = (accuracy * loss_mask).mean()
+
+        perplexity = torch.exp(loss) * loss_mask.mean()
+
+        return {
+            'loss': loss,
+            'accuracy': accuracy,
+            'perplexity': perplexity
+        }
+
 
