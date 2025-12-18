@@ -40,7 +40,7 @@ trainer:
   # 日志和保存
   eval_steps: 1000                  # 每多少步评估一次
   save_steps: 1000                  # 每多少步保存一次
-  logging_steps: 1                  # 每多少步记录日志
+  logging_steps: 1000               # 每多少步记录日志
   
   # 其他配置
   gradient_checkpointing: false     # 显存充足，关闭checkpointing以换取更快速度

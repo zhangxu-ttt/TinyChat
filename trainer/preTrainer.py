@@ -61,8 +61,6 @@ class PreTrainer(BaseTrainer):
 
         perplexity = torch.exp(loss).mean()
 
-        print(f"loss: {loss.item():.4f}, accuracy: {accuracy.item():.4f}, perplexity: {perplexity.item():.4f}")
-
         return {
             'loss': loss,
             'accuracy': accuracy,
