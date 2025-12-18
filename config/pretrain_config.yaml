@@ -18,7 +18,7 @@ model:
 
 # 数据配置
 data:
-  train_data_path: "data/pretrain_test.jsonl"
+  train_data_path: "data/pretrain_hq.jsonl"
   max_length: 1024
   num_workers: 16              # 增加到CPU核心数的1/2到2/3
   prefetch_factor: 4           # 增加预取buffer，从2改到4
@@ -29,7 +29,7 @@ data:
 # 训练配置
 trainer:
   num_epochs: 5
-  learning_rate: 1e-4
+  learning_rate: 0.0001
   weight_decay: 0.01
   warmup_steps: 500               # 增加warmup步数，更平滑
   max_steps: -1                    # -1表示使用num_epochs
