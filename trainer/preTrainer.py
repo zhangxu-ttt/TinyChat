@@ -59,7 +59,9 @@ class PreTrainer(BaseTrainer):
         accuracy = (output.logits.argmax(dim=-1) == y).float()
         accuracy = (accuracy * loss_mask).mean()
 
-        perplexity = torch.exp(loss) * loss_mask.mean()
+        perplexity = torch.exp(loss).mean()
+
+        print(f"loss: {loss.item():.4f}, accuracy: {accuracy.item():.4f}, perplexity: {perplexity.item():.4f}")
 
         return {
             'loss': loss,
