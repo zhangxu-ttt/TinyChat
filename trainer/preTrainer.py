@@ -44,9 +44,9 @@ class PreTrainer(BaseTrainer):
         return dataloader
 
     def train_step(self, batch: Dict[str, torch.Tensor]) -> dict:
-        x = batch['x']
-        y = batch['y']
-        loss_mask = batch['loss_mask']
+        x = batch['x'].to(self.device)
+        y = batch['y'].to(self.device)
+        loss_mask = batch['loss_mask'].to(self.device)
 
         output = self.model(x)
         loss = output.loss
