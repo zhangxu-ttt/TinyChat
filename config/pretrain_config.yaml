@@ -1,0 +1,65 @@
+# 预训练配置文件
+
+# Tokenizer路径
+tokenizer_path: "tokenizer/minimind"
+dtype: float16
+
+# 模型配置
+model:
+  vocab_size: 6400
+  n_layers: 24
+  d_model: 1024
+  q_head: 16
+  kv_head: 4
+  d_ff: 4096
+  dropout_p: 0.1
+  max_seq_length: 1024
+  rope_theta: 1000000.0
+
+# 数据配置
+data:
+  train_data_path: "data/pretrain_hq.jsonl"
+  max_length: 1024
+  num_workers: 16              # 增加到CPU核心数的1/2到2/3
+  prefetch_factor: 4           # 增加预取buffer，从2改到4
+  persistent_workers: true     # 添加这行：保持worker进程不重启
+  pin_memory: true       # 启用pin_memory加速数据传输
+  drop_last: true        # 丢弃最后不完整的batch，保证各GPU负载均衡
+
+# 训练配置
+training:
+  num_epochs: 5
+  learning_rate: 1e-4
+  weight_decay: 0.01
+  warmup_steps: 500               # 增加warmup步数，更平滑
+  max_steps: -1                    # -1表示使用num_epochs
+
+  batch_size: 20  # 逐步增加batch size
+  gradient_accumulation_steps: 3
+
+  # 日志和保存
+  eval_steps: 1000                  # 每多少步评估一次
+  save_steps: 1000                  # 每多少步保存一次
+  logging_steps: 1                  # 每多少步记录日志
+  
+  # 其他配置
+  gradient_checkpointing: false     # 显存充足，关闭checkpointing以换取更快速度
+  max_grad_norm: 1.0                # 梯度裁剪
+  seed: 42
+
+
+  
+# 输出配置
+output:
+  output_dir: "output/pretrain"
+  save_total_limit: 5
+#  resume_from_checkpoint: "output/pretrain"
+  output_hf_dir: "output/pretrain_v2_hf"
+  
+# WandB配置
+wandb:
+  enabled: true
+  project: "zx-llm-pretrain"
+  run_name: "pretrain_v2"
+  entity: null                     # WandB用户名或团队名
+
