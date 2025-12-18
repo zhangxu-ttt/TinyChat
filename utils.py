@@ -11,7 +11,7 @@ def init_distributed_train():
     torch.cuda.set_device(local_rank)
     return local_rank
 
-def set_seed(self, seed: int):
+def set_seed(seed: int):
     """设置随机种子"""
     import random
     import numpy as np
