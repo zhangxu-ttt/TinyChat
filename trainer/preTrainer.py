@@ -48,7 +48,12 @@ class PreTrainer(BaseTrainer):
         y = batch['y'].to(self.device)
         loss_mask = batch['loss_mask'].to(self.device)
 
-        output = self.model(x)
+        output = self.model(
+            input_ids=x,
+            labels=y,
+            loss_mask=loss_mask,
+        )
+
         loss = output.loss
 
         accuracy = (output.logits.argmax(dim=-1) == y).float()
