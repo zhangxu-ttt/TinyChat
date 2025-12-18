@@ -45,7 +45,7 @@ class BaseTrainer(ABC):
         self.max_grad_norm = config['trainer']['max_grad_norm']
 
         self.scaler = torch.amp.GradScaler(enabled=(self.dtype == torch.float16))
-        self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+        self.optimizer = torch.optim.AdamW(model.parameters(), lr=float(lr))
 
         self.logging_steps = config['trainer']['logging_steps']
         self.save_steps = config['trainer']['save_steps']
