@@ -27,7 +27,7 @@ data:
   drop_last: true        # 丢弃最后不完整的batch，保证各GPU负载均衡
 
 # 训练配置
-training:
+trainer:
   num_epochs: 5
   learning_rate: 1e-4
   weight_decay: 0.01

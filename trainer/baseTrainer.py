@@ -39,16 +39,16 @@ class BaseTrainer(ABC):
         else:
             self.dtype = torch.float32
 
-        lr = config['training']['learning_rate']
+        lr = config['trainer']['learning_rate']
 
         self.gradient_accumulation_steps = config['training']['gradient_accumulation_steps']
-        self.max_grad_norm = config['training']['max_grad_norm']
+        self.max_grad_norm = config['trainer']['max_grad_norm']
 
         self.scaler = torch.amp.GradScaler(enabled=(self.dtype == torch.float16))
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 
-        self.logging_steps = config['training']['logging_steps']
-        self.save_steps = config['training']['save_steps']
+        self.logging_steps = config['trainer']['logging_steps']
+        self.save_steps = config['trainer']['save_steps']
         self.output_dir = Path(self.config['output']['output_dir'])
 
         self.start_epoch = 0
@@ -66,7 +66,7 @@ class BaseTrainer(ABC):
         self.global_step = 0
         self.epoch = 0
 
-        self.num_epochs = config['training']['num_epochs']
+        self.num_epochs = config['trainer']['num_epochs']
 
     @abstractmethod
     def build_dataloader(self):

@@ -13,13 +13,13 @@ class PreTrainer(BaseTrainer):
         Returns:
             train_dataset, eval_dataset
         """
-        train_data_path = self.config['dataset']['train_data_path']
-        max_length = self.config['dataset']['max_length']
-        num_workers = self.config['dataset']['num_workers']
-        prefetch_factor = self.config['dataset']['prefetch_factor']
-        persistent_workers = self.config['dataset']['persistent_workers']
-        pin_memory = self.config['dataset']['pin_memory']
-        drop_last = self.config['dataset']['drop_last']
+        train_data_path = self.config['data']['train_data_path']
+        max_length = self.config['data']['max_length']
+        num_workers = self.config['data']['num_workers']
+        prefetch_factor = self.config['data']['prefetch_factor']
+        persistent_workers = self.config['data']['persistent_workers']
+        pin_memory = self.config['data']['pin_memory']
+        drop_last = self.config['data']['drop_last']
 
         batch_size = self.config['trainer']['batch_size']
 
