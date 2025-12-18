@@ -27,6 +27,7 @@ class BaseTrainer(ABC):
         self.local_rank = local_rank
         self.world_size = int(os.environ.get('WORLD_SIZE', '1'))
         self.config = config
+        self.device = device
 
         self.tokenizer = tokenizer
         self.model = model
