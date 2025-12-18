@@ -41,7 +41,7 @@ class BaseTrainer(ABC):
 
         lr = config['trainer']['learning_rate']
 
-        self.gradient_accumulation_steps = config['training']['gradient_accumulation_steps']
+        self.gradient_accumulation_steps = config['trainer']['gradient_accumulation_steps']
         self.max_grad_norm = config['trainer']['max_grad_norm']
 
         self.scaler = torch.amp.GradScaler(enabled=(self.dtype == torch.float16))

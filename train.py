@@ -69,7 +69,7 @@ def main():
 
 
     config = load_config(args.config_path)
-    set_seed(config['training'].get('seed', 42))
+    set_seed(config['trainer'].get('seed', 42))
 
     print_rank0(f"Tokenizer: {config['tokenizer_path']}")
     tokenizer = AutoTokenizer.from_pretrained(config['tokenizer_path'])
