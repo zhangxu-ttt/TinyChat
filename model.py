@@ -12,7 +12,7 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 
 
 class ModelConfig(PretrainedConfig):
-    model_type = 'zx_model'
+    model_type = 'TinyChat'
 
     def __init__(self,
                  vocab_size: int = -1,
@@ -505,5 +505,5 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
 # 注册自定义模型到 transformers 的 Auto 类系统
 from transformers import AutoConfig, AutoModelForCausalLM
 
-AutoConfig.register("zx_model", ModelConfig)
+AutoConfig.register("TinyChat-0.1B", ModelConfig)
 AutoModelForCausalLM.register(ModelConfig, TransformerModel)
