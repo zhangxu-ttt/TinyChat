@@ -7,11 +7,11 @@ dtype: float16
 # 模型配置
 model:
   vocab_size: 6400
-  n_layers: 24
-  d_model: 1024
+  n_layers: 12
+  d_model: 768
   q_head: 16
   kv_head: 4
-  d_ff: 4096
+  d_ff: 3072
   dropout_p: 0.1
   max_seq_length: 1024
   rope_theta: 1000000.0
@@ -34,8 +34,8 @@ trainer:
   warmup_steps: 500               # 增加warmup步数，更平滑
   max_steps: -1                    # -1表示使用num_epochs
 
-  batch_size: 16
-  gradient_accumulation_steps: 3
+  batch_size: 32
+  gradient_accumulation_steps: 1
 
   # 日志和保存
   eval_steps: 1000                  # 每多少步评估一次
