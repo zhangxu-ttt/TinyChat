@@ -151,7 +151,8 @@ class BaseTrainer(ABC):
                     self.log_metrics(metrics)
                     # 定期打印metrics
                     if (self.global_step + 1) % self.logging_steps == 0:
-                        print_rank0(f"Step {self.global_step + 1}: {metrics}")
+                        print_rank0(f"Step {self.global_step + 1}: " +
+                                    " ".join([f"{k}: {v.item():.4f}" for k, v in metrics.items()]))
 
 
                     # 定期保存模型
