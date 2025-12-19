@@ -49,7 +49,7 @@ class BaseTrainer(ABC):
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=float(lr))
 
         self.logging_steps = config['trainer']['logging_steps']
-        self.save_steps = config['trainer']['save_steps']
+        self.save_steps = config['trainer'].get('save_steps', None)
         self.output_dir = Path(self.config['output']['output_dir'])
 
         self.start_epoch = 0
@@ -155,7 +155,7 @@ class BaseTrainer(ABC):
 
 
                     # 定期保存模型
-                    if (self.global_step + 1) % self.save_steps == 0:
+                    if self.save_steps and (self.global_step + 1) % self.save_steps == 0:
                         self.save_checkpoint(tag=f"checkpoint-{self.global_step}")
 
                     self.update_progress_bar(pbar, metrics)
@@ -164,6 +164,8 @@ class BaseTrainer(ABC):
                 if is_main_process():
                     self.save_checkpoint(tag=f"epoch-{self.epoch}")
                 self.epoch += 1
+
+        return self.model
 
     @abstractmethod
     def train_step(self, batch: Dict[str, torch.Tensor]) -> dict:

@@ -83,3 +83,8 @@ def read_jsonl(path: str) -> List[Dict]:
         return [json.loads(line.strip()) for line in f]
 
 
+def save_hf_model(model, tokenizer, save_dir: str):
+    """保存HF模型和tokenizer"""
+    model.save_pretrained(save_dir)
+    tokenizer.save_pretrained(save_dir)
+

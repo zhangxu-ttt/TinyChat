@@ -119,7 +119,7 @@ def main():
     else:
         raise ValueError(f"不支持的任务类型: {args.task_type}")
 
-    trainer.train()
+    model = trainer.train()
 
 
 if __name__ == '__main__':

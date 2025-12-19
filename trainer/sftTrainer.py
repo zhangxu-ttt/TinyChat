@@ -3,9 +3,9 @@ from typing import Dict
 import torch
 from torch.utils.data import Dataset, DataLoader, DistributedSampler
 from .baseTrainer import BaseTrainer
-from dataset import TextDataset
+from dataset import ChatMLDataset
 
-class PreTrainer(BaseTrainer):
+class SFTTrainer(BaseTrainer):
     def build_dataloader(self):
         """
         准备数据集 - 子类必须实现
@@ -23,7 +23,7 @@ class PreTrainer(BaseTrainer):
 
         batch_size = self.config['trainer']['batch_size']
 
-        dataset = TextDataset(
+        dataset = ChatMLDataset(
             data_path=train_data_path,
             tokenizer=self.tokenizer,
             max_length=max_length,
@@ -44,10 +44,9 @@ class PreTrainer(BaseTrainer):
         return dataloader
 
     def train_step(self, batch: Dict[str, torch.Tensor]) -> dict:
-        # 使用non_blocking异步传输，提升数据传输效率
-        x = batch['x'].to(self.device, non_blocking=True)
-        y = batch['y'].to(self.device, non_blocking=True)
-        loss_mask = batch['loss_mask'].to(self.device, non_blocking=True)
+        x = batch['x'].to(self.device)
+        y = batch['y'].to(self.device)
+        loss_mask = batch['loss_mask'].to(self.device)
 
         output = self.model(
             input_ids=x,
@@ -57,12 +56,10 @@ class PreTrainer(BaseTrainer):
 
         loss = output.loss
 
-        with torch.no_grad():
-            num_valid_tokens = loss_mask.sum()
-            correct_preds = (output.logits.argmax(dim=-1) == y) & loss_mask
-            accuracy = correct_preds.sum() / num_valid_tokens
-            
-            perplexity = torch.exp(loss)
+        accuracy = (output.logits.argmax(dim=-1) == y).float()
+        accuracy = (accuracy * loss_mask).mean()
+
+        perplexity = torch.exp(loss).mean()
 
         return {
             'loss': loss,
