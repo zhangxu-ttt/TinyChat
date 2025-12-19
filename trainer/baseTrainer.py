@@ -166,7 +166,7 @@ class BaseTrainer(ABC):
                 self.epoch += 1
 
     @abstractmethod
-    def train_step(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def train_step(self, batch: Dict[str, torch.Tensor]) -> dict:
         """
         单个训练步骤 - 子类必须实现
         
@@ -174,7 +174,7 @@ class BaseTrainer(ABC):
             batch: 批次数据
         
         Returns:
-            loss: 损失值
+            metrics: 包含损失和其他指标的字典
         """
         raise NotImplementedError
 
