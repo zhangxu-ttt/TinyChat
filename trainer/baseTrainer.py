@@ -148,9 +148,11 @@ class BaseTrainer(ABC):
                         self.scaler.update()
                         self.optimizer.zero_grad()
 
-                    # 定期记录日志到wandb
+                    self.log_metrics(metrics)
+                    # 定期打印metrics
                     if (self.global_step + 1) % self.logging_steps == 0:
-                        self.log_metrics(metrics)
+                        print_rank0(f"Step {self.global_step + 1}: {metrics}")
+
 
                     # 定期保存模型
                     if (self.global_step + 1) % self.save_steps == 0:
