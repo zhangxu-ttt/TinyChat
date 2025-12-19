@@ -505,5 +505,5 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
 # 注册自定义模型到 transformers 的 Auto 类系统
 from transformers import AutoConfig, AutoModelForCausalLM
 
-AutoConfig.register("TinyChat-0.1B", ModelConfig)
+AutoConfig.register("TinyChat", ModelConfig)
 AutoModelForCausalLM.register(ModelConfig, TransformerModel)
