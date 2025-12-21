@@ -28,7 +28,7 @@ data:
 
 # 训练配置
 trainer:
-  num_epochs: 1
+  num_epochs: 5
   learning_rate: 5e-5
   weight_decay: 0.01
   warmup_steps: 500               # 增加warmup步数，更平滑
@@ -39,7 +39,7 @@ trainer:
 
   # 日志和保存
   eval_steps: 1000                  # 每多少步评估一次
-  save_steps: 1000                  # 每多少步保存一次
+  save_steps: 10000                 # 每多少步保存一次
   logging_steps: 1000               # 每多少步记录日志
   
   # 其他配置
@@ -51,9 +51,9 @@ trainer:
   
 # 输出配置
 output:
-  output_dir: "output/pretrain"
+  output_dir: "output/sft"
 #  save_total_limit: 5
-#  resume_from_checkpoint: "output/pretrain"
+  resume_from_checkpoint: "output/pretrain/epoch-3.pth"
   
 # WandB配置
 wandb:
