@@ -109,8 +109,11 @@ def main():
         )
     elif args.task_type == 'sft':
         trainer = SFTTrainer(
-            config_path=args.config_path,
-            local_rank=args.local_rank
+            model=model,
+            tokenizer=tokenizer,
+            config=config,
+            local_rank=local_rank,
+            device=device
         )
     # elif args.task_type == 'dpo':
     #     trainer = DPOTrainer(
