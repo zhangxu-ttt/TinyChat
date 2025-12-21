@@ -44,9 +44,9 @@ class SFTTrainer(BaseTrainer):
         return dataloader
 
     def train_step(self, batch: Dict[str, torch.Tensor]) -> dict:
-        x = batch['x'].to(self.device)
-        y = batch['y'].to(self.device)
-        loss_mask = batch['loss_mask'].to(self.device)
+        x = batch['x'].to(self.device, non_blocking=True)
+        y = batch['y'].to(self.device, non_blocking=True)
+        loss_mask = batch['loss_mask'].to(self.device, non_blocking=True)
 
         output = self.model(
             input_ids=x,
@@ -56,10 +56,12 @@ class SFTTrainer(BaseTrainer):
 
         loss = output.loss
 
-        accuracy = (output.logits.argmax(dim=-1) == y).float()
-        accuracy = (accuracy * loss_mask).mean()
+        with torch.no_grad():
+            num_valid_tokens = loss_mask.sum()
+            correct_preds = (output.logits.argmax(dim=-1) == y) & loss_mask
+            accuracy = correct_preds.sum() / num_valid_tokens
 
-        perplexity = torch.exp(loss).mean()
+            perplexity = torch.exp(loss)
 
         return {
             'loss': loss,

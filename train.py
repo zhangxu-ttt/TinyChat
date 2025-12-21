@@ -13,6 +13,7 @@ from transformers import AutoTokenizer
 from utils import set_seed, print_rank0, is_main_process, init_distributed_train
 from model import TransformerModel, ModelConfig
 from trainer.preTrainer import PreTrainer
+from trainer.sftTrainer import SFTTrainer
 
 def parse_args():
     """解析命令行参数"""
@@ -106,11 +107,11 @@ def main():
             local_rank=local_rank,
             device=device
         )
-    # elif args.task_type == 'sft':
-    #     trainer = SFTTrainer(
-    #         config_path=args.config_path,
-    #         local_rank=args.local_rank
-    #     )
+    elif args.task_type == 'sft':
+        trainer = SFTTrainer(
+            config_path=args.config_path,
+            local_rank=args.local_rank
+        )
     # elif args.task_type == 'dpo':
     #     trainer = DPOTrainer(
     #         config_path=args.config_path,
