@@ -151,6 +151,7 @@ class RotaryEmbedding(nn.Module):
             k: torch.Tensor,
             seq_length: Optional[int] = None,
             seq_index: int = 1,
+            start_pos: int = 0,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         应用旋转位置编码到查询和键
@@ -159,6 +160,7 @@ class RotaryEmbedding(nn.Module):
             q: 查询张量，形状 [batch_size, seq_length, n_head, head_dim]
             k: 键张量，形状 [batch_size, seq_length, n_head, head_dim]
             seq_length: 序列长度（如果为 None，从 q 推断）
+            start_pos: 起始位置（用于KV cache生成）
 
         Returns:
             应用 RoPE 后的 (q, k)，形状与输入相同
@@ -166,13 +168,16 @@ class RotaryEmbedding(nn.Module):
         if seq_length is None:
             seq_length = q.shape[seq_index]
 
-        # 如果序列长度超过缓存，重新计算
-        if seq_length > self.max_seq_length_cached:
-            self._set_cos_sin_cache(seq_length)
+        # 计算实际需要的位置范围
+        end_pos = start_pos + seq_length
+        
+        # 如果位置超过缓存，重新计算
+        if end_pos > self.max_seq_length_cached:
+            self._set_cos_sin_cache(end_pos)
 
-        # 获取 cos 和 sin: [1, seq_length, 1, dim]
-        cos = self.cos_cached[:, :seq_length, :, :]
-        sin = self.sin_cached[:, :seq_length, :, :]
+        # 获取对应位置的 cos 和 sin: [1, seq_length, 1, dim]
+        cos = self.cos_cached[:, start_pos:end_pos, :, :]
+        sin = self.sin_cached[:, start_pos:end_pos, :, :]
 
         # 确保 cos 和 sin 的数据类型与 q 一致（用于 FP16 训练）
         cos = cos.to(q.dtype)
@@ -249,11 +254,13 @@ class GroupQueryAttention(nn.Module):
                 ):
         batch_size, seq_length, dim = q.shape
 
-        q = self.q_proj(q)
+        q = self.q_proj(q).reshape(batch_size, seq_length, self.q_head, self.head_dim)
 
         if use_cache:
             if kv_cache is None:
                 k = self.k_proj(k).reshape(batch_size, seq_length, self.kv_head, self.head_dim)
+                q, k = self.rope(q, k, start_pos=start_pos)
+
                 v = self.v_proj(v).reshape(batch_size, seq_length, self.kv_head, self.head_dim)
                 kv_cache = KVCache(
                     k=k,
@@ -261,6 +268,8 @@ class GroupQueryAttention(nn.Module):
                 )
             else:
                 new_k = self.k_proj(k).reshape(batch_size, seq_length, self.kv_head, self.head_dim)
+                q, new_k = self.rope(q, new_k, start_pos=start_pos)
+
                 new_v = self.v_proj(v).reshape(batch_size, seq_length, self.kv_head, self.head_dim)
                 k, v = kv_cache.update(new_k, new_v)
 
@@ -268,27 +277,22 @@ class GroupQueryAttention(nn.Module):
             v = v.to(q.dtype)
 
         else:
-            k = self.k_proj(k)
-            v = self.v_proj(v)
-
-        q = q.reshape(batch_size, -1, self.q_head, self.head_dim)  # batch all_seq_len q_head head_dim
-        k = k.reshape(batch_size, -1, self.kv_head, self.head_dim)  # batch all_seq_len kv_head head_dim
-        v = v.reshape(batch_size, -1, self.kv_head, self.head_dim)  # batch all_seq_len kv_head head_dim
-
-        q, k = self.rope(q, k)
+            k = self.k_proj(k).reshape(batch_size, seq_length, self.kv_head, self.head_dim)
+            v = self.v_proj(v).reshape(batch_size, seq_length, self.kv_head, self.head_dim)
+            q, k = self.rope(q, k, start_pos=start_pos)
 
         q = q.transpose(1, 2)  # batch q_head seq_len head_dim
-        k = k.repeat(1, 1, self.q_head // self.kv_head, 1).transpose(1, 2)  # batch q_head all_seq_len head_dim
-        v = v.repeat(1, 1, self.q_head // self.kv_head, 1).transpose(1, 2)  # batch q_head all_seq_len head_dim
+        k = k.repeat_interleave(self.q_head // self.kv_head, dim=2).transpose(1, 2)  # batch q_head all_seq_len head_dim
+        v = v.repeat_interleave(self.q_head // self.kv_head, dim=2).transpose(1, 2)  # batch q_head all_seq_len head_dim
 
-        if attn_mask is  None:
+        if attn_mask is None:
             output = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout_p, is_causal=True).transpose(
-                1, 2)  # batch all_seq_len q_head head_dim
+                1, 2)  # batch seq_length q_head head_dim
         else:
             attn_mask = attn_mask.to(q.dtype)
             output = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=self.dropout_p, is_causal=False).transpose(
-                1, 2)  # batch all_seq_len q_head head_dim
-        output = output.reshape(batch_size, -1, self.d_model)
+                1, 2)  # batch seq_length q_head head_dim
+        output = output.reshape(batch_size, seq_length, self.d_model)
         output = self.o_proj(output)
 
         return output, kv_cache
@@ -337,10 +341,10 @@ class TransformerLayer(nn.Module):
                  rope_theta: float = 1000000.0
                  ):
         super().__init__()
-        self.attn_norm = nn.LayerNorm(d_model)
+        self.attn_norm = RMSNorm(d_model)
         self.attention = GroupQueryAttention(d_model, q_head, kv_head, dropout_p, max_seq_length, rope_theta)
 
-        self.ffn_norm = nn.LayerNorm(d_model)
+        self.ffn_norm = RMSNorm(d_model)
         self.ffn = FFN(d_model, d_ff, dropout_p)
 
     def forward(self,
@@ -377,7 +381,7 @@ def create_custom_forward(module):
 
 class TransformerModel(PreTrainedModel, GenerationMixin):
     config_class = ModelConfig
-    supports_gradient_checkpointing = True 
+    supports_gradient_checkpointing = True
 
     def __init__(self, config: ModelConfig):
         super().__init__(config)
@@ -407,7 +411,7 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
 
     def gradient_checkpointing_enable(self):
         self.gradient_checkpointing = True
-    
+
     def gradient_checkpointing_disable(self):
         self.gradient_checkpointing = False
 
@@ -421,7 +425,7 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
                 output_hidden_states: bool = False,
                 return_dict: bool = True,
                 loss_mask: torch.Tensor = None,
-                **kwargs  
+                **kwargs
                 ):
         x = self.embedding(input_ids)
         past_kv_caches = past_key_values
@@ -443,7 +447,7 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
                     use_cache,
                     kv_cache,
                     start_pos,
-                    use_reentrant=False 
+                    use_reentrant=False
                 )
             else:
                 x, kv_cache = layer(x=x, attn_mask=attention_mask, use_cache=use_cache, kv_cache=kv_cache,
@@ -458,7 +462,7 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
         x = self.norm(x)
         logits = self.lm_head(x)
 
-        
+
         loss = None
         if labels is not None:
             loss_fct = nn.CrossEntropyLoss()
@@ -475,9 +479,9 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
             )
         else:
             return (loss, logits, new_kv_caches, all_hidden_states)
-    
+
     def prepare_inputs_for_generation(
-        self, 
+        self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor = None,
         past_key_values: List[KVCache] = None,
@@ -487,6 +491,9 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
         if use_cache and past_key_values is not None:
             start_pos = past_key_values[0].k.shape[1]
             input_ids = input_ids[:, -1:]
+            # 关键修复：使用 KV cache 时不传 attention_mask
+            # 让模型使用 is_causal=True 自动创建正确的 causal mask
+            attention_mask = None
         else:
             start_pos = 0
 

@@ -5,3 +5,5 @@
 /hugging_face/tokenizer.json
 /hugging_face/tokenizer_config.json
 /hugging_face/upload_to_hub.py
+/output/pretrain/
+/conver_pth_to_hf.py

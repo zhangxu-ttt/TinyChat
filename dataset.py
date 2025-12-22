@@ -84,9 +84,14 @@ class ChatMLDataset(Dataset):
         self.bos_token_id = self.tokenizer.bos_token_id
         self.eos_token_id = self.tokenizer.eos_token_id
 
-        self.answer_start_token = f"<|im_start|>assistant\n"
-        self.answer_start_token_id_list = None
-        self.answer_end_token_id_list = [self.eos_token_id]
+        # 初始化 assistant 起始标记的 token ids
+        self.answer_start_token = "<|im_start|>assistant\n"
+        self.assistant_start_ids = torch.tensor(
+            self.tokenizer.encode(self.answer_start_token, add_special_tokens=False),
+            dtype=torch.long
+        )
+        # im_end token id
+        self.im_end_id = self.tokenizer.encode("<|im_end|>", add_special_tokens=False)[0]
 
     def load_data(self, data_path: Union[str, List[str]]) -> List[str]:
         if isinstance(data_path, str):

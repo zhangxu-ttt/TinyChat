@@ -150,22 +150,16 @@ class BaseTrainer(ABC):
                         self.optimizer.zero_grad()
 
                     self.log_metrics(metrics)
-                    # 定期打印metrics
-                    if (self.global_step + 1) % self.logging_steps == 0:
-                        print_rank0(f"Step {self.global_step + 1}: " +
-                                    " ".join([f"{k}: {v.item():.4f}" for k, v in metrics.items()]))
-
 
                     # 定期保存模型
-                    if self.save_steps and (self.global_step + 1) % self.save_steps == 0:
-                        self.save_checkpoint(tag=f"checkpoint-{self.global_step + 1}")
+                    if (self.global_step + 1) % self.save_steps == 0:
+                        self.save_checkpoint(tag=f"checkpoint-{self.global_step}")
 
                     self.update_progress_bar(pbar, metrics)
                     self.global_step += 1
 
                 if is_main_process():
                     self.save_checkpoint(tag=f"epoch-{self.epoch + 1}")
-                self.epoch += 1
 
         return self.model
 
@@ -193,8 +187,11 @@ class BaseTrainer(ABC):
         if not is_main_process():
             return
 
+        # 获取实际的模型（处理 DDP 包装的情况）
+        model_to_save = self.model.module if hasattr(self.model, 'module') else self.model
+        
         torch.save({
-            "model": self.model.module.state_dict(),
+            "model": model_to_save.state_dict(),
             "optimizer": self.optimizer.state_dict(),
             "scaler": self.scaler.state_dict(),  # 必须保存 Scaler 状态
             "epoch": self.epoch
@@ -202,11 +199,19 @@ class BaseTrainer(ABC):
 
     def load_checkpoint(self, tag: str):
         checkpoint = torch.load(f"{self.resume_from_checkpoint}", map_location=f"cuda:{self.local_rank}")
-        self.model.module.load_state_dict(checkpoint["model"])
+        
+        # 获取实际的模型（处理 DDP 包装的情况）
+        model_to_load = self.model.module if hasattr(self.model, 'module') else self.model
+        model_to_load.load_state_dict(checkpoint["model"])
+        
         self.optimizer.load_state_dict(checkpoint["optimizer"])
         self.scaler.load_state_dict(checkpoint["scaler"])  # 加载 Scaler 状态
 
         if self.continue_train:
-            self.start_epoch = checkpoint["epoch"]
+            # checkpoint["epoch"] 表示已完成的epoch，所以继续训练应该从下一个epoch开始
+            self.start_epoch = checkpoint["epoch"] + 1
+            print_rank0(f"从 checkpoint 恢复训练，将从 epoch {self.start_epoch} 开始")
+        else:
+            print_rank0(f"加载 checkpoint 权重，从 epoch 0 开始训练")
 
 
