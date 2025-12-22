@@ -98,10 +98,7 @@ class ChatMLDataset(Dataset):
         return texts
 
     def process_sample(self, text):
-        """处理样本"""
-        if self.answer_start_token_id_list is None:
-            self.answer_start_token_id_list = self.tokenizer(self.answer_start_token)['input_ids']  # 是一个list
-
+        """高效的样本处理"""
         encoding = self.tokenizer(
             text,
             max_length=self.max_length,
@@ -109,49 +106,30 @@ class ChatMLDataset(Dataset):
             padding="max_length",
             return_tensors="pt",
         )
-
+        
         input_ids = encoding.input_ids.squeeze()
-        input_ids_list = input_ids.tolist()  # 转换为列表供KMP算法使用
-
-        # 处理loss_mask，只计算assistant的回答部分，这里需要找到
-        # 1. <im_start>assistant 出现的位置(KMP算法)
-        start_idx = kmp_search(input_ids_list, self.answer_start_token_id_list)
-
-        # 2. <im_end> 出现的位置(KMP算法)
-        end_idx = kmp_search(input_ids_list, self.answer_end_token_id_list)
-
-        # 3. 将 <im_start>assistant 和它后面第一个出现的 <im_end> 之间的部分保留，其他部分mask
-        loss_mask = [0] * len(input_ids_list)
-
-        # 配对算法：为每个 assistant 起始位置找到对应的 <im_end> 结束位置
-        start_len = len(self.answer_start_token_id_list)
-        end_len = len(self.answer_end_token_id_list)
-
-        j = 0  # end_idx 的指针
-        for i in range(len(start_idx)):
-            start_pos = start_idx[i]
-
-            # 跳过在当前 assistant 之前的所有 <im_end>
-            while j < len(end_idx) and end_idx[j] + end_len - 1 < start_pos:
-                j += 1
-
-            # 如果找到了有效的结束位置，标记这个范围
-            if j < len(end_idx):
-                # 从 assistant 标记之后开始，到 <im_end> 结束（包含）
-                range_start = start_pos + start_len
-                range_end = end_idx[j]
-
-                for idx in range(range_start, range_end + 1):
-                    if 0 <= idx < len(loss_mask):
-                        loss_mask[idx] = 1
-
-                j += 1  # 移动到下一个可能的结束位置
-            # 如果没有找到对应的 end_idx，跳过这个 assistant（避免死循环）
-
+        
+        # 使用张量操作快速创建 loss_mask
+        loss_mask = torch.zeros_like(input_ids, dtype=torch.bool)
+        
+        # 方法1: 使用滑动窗口匹配（向量化）
+        assistant_len = len(self.assistant_start_ids)
+        
+        # 查找所有 assistant 起始位置
+        for i in range(len(input_ids) - assistant_len + 1):
+            if torch.equal(input_ids[i:i+assistant_len], self.assistant_start_ids):
+                # 从这个位置开始找到下一个 im_end
+                start_pos = i + assistant_len
+                end_positions = (input_ids[start_pos:] == self.im_end_id).nonzero(as_tuple=True)[0]
+                
+                if len(end_positions) > 0:
+                    end_pos = start_pos + end_positions[0].item()
+                    loss_mask[start_pos:end_pos+1] = True
+        
         x = input_ids[:-1]
         y = input_ids[1:]
-
-        return x, y, torch.tensor(loss_mask[1:])
+        
+        return x, y, loss_mask[1:]
 
     def __len__(self) -> int:
         return len(self.data)
