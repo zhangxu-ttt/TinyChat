@@ -54,6 +54,7 @@ class BaseTrainer(ABC):
 
         self.start_epoch = 0
         self.resume_from_checkpoint = self.config['output'].get('resume_from_checkpoint', None)
+        self.continue_train = self.config['output'].get('continue_train', False)
         if self.resume_from_checkpoint:
             self.load_checkpoint(self.resume_from_checkpoint)
 
@@ -204,6 +205,8 @@ class BaseTrainer(ABC):
         self.model.module.load_state_dict(checkpoint["model"])
         self.optimizer.load_state_dict(checkpoint["optimizer"])
         self.scaler.load_state_dict(checkpoint["scaler"])  # 加载 Scaler 状态
-        self.start_epoch = checkpoint["epoch"]
+
+        if self.continue_train:
+            self.start_epoch = checkpoint["epoch"]
 
 
