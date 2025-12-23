@@ -1,9 +1,10 @@
-/hugging_face/config.json
-/hugging_face/configuration_tinychat.py
-/hugging_face/modeling_tinychat.py
-/hugging_face/README.md
-/hugging_face/tokenizer.json
-/hugging_face/tokenizer_config.json
+/hugging_face/pretrain/config.json
+/hugging_face/pretrain/configuration_tinychat.py
+/hugging_face/pretrain/modeling_tinychat.py
+/hugging_face/pretrain/README.md
+/hugging_face/pretrain/tokenizer.json
+/hugging_face/pretrain/tokenizer_config.json
 /hugging_face/upload_to_hub.py
 /output/pretrain/
 /conver_pth_to_hf.py
+/hugging_face/

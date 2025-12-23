@@ -273,6 +273,9 @@ class GroupQueryAttention(nn.Module):
                 new_v = self.v_proj(v).reshape(batch_size, seq_length, self.kv_head, self.head_dim)
                 k, v = kv_cache.update(new_k, new_v)
 
+                k = k.contiguous()
+                v = v.contiguous()
+
             k = k.to(q.dtype)
             v = v.to(q.dtype)
 
@@ -281,16 +284,24 @@ class GroupQueryAttention(nn.Module):
             v = self.v_proj(v).reshape(batch_size, seq_length, self.kv_head, self.head_dim)
             q, k = self.rope(q, k, start_pos=start_pos)
 
+        # 确保所有tensor连续，避免内存布局问题
+        q = q.contiguous()
+        k = k.contiguous()
+        v = v.contiguous()
+        
         q = q.transpose(1, 2)  # batch q_head seq_len head_dim
         k = k.repeat_interleave(self.q_head // self.kv_head, dim=2).transpose(1, 2)  # batch q_head all_seq_len head_dim
         v = v.repeat_interleave(self.q_head // self.kv_head, dim=2).transpose(1, 2)  # batch q_head all_seq_len head_dim
 
+        dropout_p = self.dropout_p if self.training else 0.0
+
         if attn_mask is None:
-            output = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout_p, is_causal=True).transpose(
+            is_causal = (q.shape[2] == k.shape[2])
+            output = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=dropout_p, is_causal=is_causal).transpose(
                 1, 2)  # batch seq_length q_head head_dim
         else:
             attn_mask = attn_mask.to(q.dtype)
-            output = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=self.dropout_p, is_causal=False).transpose(
+            output = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=False).transpose(
                 1, 2)  # batch seq_length q_head head_dim
         output = output.reshape(batch_size, seq_length, self.d_model)
         output = self.o_proj(output)
@@ -483,7 +494,6 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
     def prepare_inputs_for_generation(
         self,
         input_ids: torch.Tensor,
-        attention_mask: torch.Tensor = None,
         past_key_values: List[KVCache] = None,
         use_cache: bool = True,
         **kwargs
@@ -491,16 +501,11 @@ class TransformerModel(PreTrainedModel, GenerationMixin):
         if use_cache and past_key_values is not None:
             start_pos = past_key_values[0].k.shape[1]
             input_ids = input_ids[:, -1:]
-            # 关键修复：使用 KV cache 时不传 attention_mask
-            # 让模型使用 is_causal=True 自动创建正确的 causal mask
-            attention_mask = None
         else:
             start_pos = 0
 
-
         model_inputs = {
             "input_ids": input_ids,
-            "attention_mask": attention_mask,
             "past_key_values": past_key_values,
             "use_cache": use_cache,
             "start_pos": start_pos
