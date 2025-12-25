@@ -1,5 +1,6 @@
 import argparse
 import sys
+import os
 import yaml
 from pathlib import Path
 from typing import Dict, Optional, Any
@@ -14,6 +15,14 @@ from utils import set_seed, print_rank0, is_main_process, init_distributed_train
 from model import TransformerModel, ModelConfig
 from trainer.preTrainer import PreTrainer
 from trainer.sftTrainer import SFTTrainer
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+# ===== 性能优化配置 =====
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+torch.backends.cudnn.benchmark = True
+# ======================
 
 def parse_args():
     """解析命令行参数"""
@@ -86,7 +95,12 @@ def main():
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print_rank0(f"Trainable Parameters: {trainable_params}")
 
-    model = torch.compile(model)
+    model = torch.compile(
+        model,
+        mode="max-autotune",  # 最激进的优化
+        fullgraph=True,       # 尝试编译整个图
+        dynamic=False         # 禁用动态shape
+    )
 
     if dist.is_initialized():
         # 忽略 RoPE 的预计算 cos/sin 缓存，这些在每个设备上独立计算且相同
@@ -96,7 +110,12 @@ def main():
             ignored_buffers.add(f"layers.{i}.attention.rope.cos_cached")
             ignored_buffers.add(f"layers.{i}.attention.rope.sin_cached")
         model._ddp_params_and_buffers_to_ignore = ignored_buffers
-        model = DistributedDataParallel(model, device_ids=[local_rank])
+        model = DistributedDataParallel(
+            model, 
+            device_ids=[local_rank],
+            gradient_as_bucket_view=True,  # 减少梯度内存使用
+            static_graph=True              # 静态图优化
+        )
 
     # 根据任务类型选择训练器
     if args.task_type == 'pretrain':

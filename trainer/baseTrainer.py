@@ -36,8 +36,8 @@ class BaseTrainer(ABC):
 
         if config['dtype'] == 'float16':
             self.dtype = torch.float16
-        # elif config['dtype'] == 'bfloat16':
-        #     self.dtype = torch.bfloat16
+        elif config['dtype'] == 'bfloat16':
+            self.dtype = torch.bfloat16
         else:
             self.dtype = torch.float32
 
@@ -47,7 +47,12 @@ class BaseTrainer(ABC):
         self.max_grad_norm = config['trainer']['max_grad_norm']
 
         self.scaler = torch.amp.GradScaler(enabled=(self.dtype == torch.float16))
-        self.optimizer = torch.optim.AdamW(model.parameters(), lr=float(lr))
+        self.optimizer = torch.optim.AdamW(
+            model.parameters(), 
+            lr=float(lr),
+            weight_decay=config['trainer']['weight_decay'],
+            fused=True  # 使用fused kernel加速
+        )
 
         self.logging_steps = config['trainer']['logging_steps']
         self.save_steps = config['trainer'].get('save_steps', None)
@@ -187,8 +192,8 @@ class BaseTrainer(ABC):
                         metrics['time/total_ms'] = (time.time() - t_start) * 1000
 
                         
-
-                    self.log_metrics(metrics)
+                    if (self.global_step + 1) % self.logging_steps == 0:
+                        self.log_metrics(metrics)
 
                     # 定期保存模型
                     if (self.global_step + 1) % self.save_steps == 0:

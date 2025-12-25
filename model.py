@@ -295,14 +295,25 @@ class GroupQueryAttention(nn.Module):
 
         dropout_p = self.dropout_p if self.training else 0.0
 
+        # 使用Flash Attention加速（PyTorch会自动选择最优kernel）
         if attn_mask is None:
             is_causal = (q.shape[2] == k.shape[2])
-            output = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=dropout_p, is_causal=is_causal).transpose(
-                1, 2)  # batch seq_length q_head head_dim
+            # 强制使用flash attention backend
+            with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
+                output = F.scaled_dot_product_attention(
+                    q, k, v, 
+                    attn_mask=None, 
+                    dropout_p=dropout_p, 
+                    is_causal=is_causal
+                ).transpose(1, 2)  # batch seq_length q_head head_dim
         else:
             attn_mask = attn_mask.to(q.dtype)
-            output = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=False).transpose(
-                1, 2)  # batch seq_length q_head head_dim
+            output = F.scaled_dot_product_attention(
+                q, k, v, 
+                attn_mask=attn_mask, 
+                dropout_p=dropout_p, 
+                is_causal=False
+            ).transpose(1, 2)  # batch seq_length q_head head_dim
         output = output.reshape(batch_size, seq_length, self.d_model)
         output = self.o_proj(output)
 
