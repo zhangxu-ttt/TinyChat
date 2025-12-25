@@ -19,7 +19,7 @@ model:
 # 数据配置
 data:
   train_data_path: "data/pretrain_hq.jsonl"
-  max_length: 1024
+  max_length: 512
   num_workers: 4              # 增加到CPU核心数的1/2到2/3
   prefetch_factor: 2           # 增加预取buffer，从2改到4
   persistent_workers: true     # 添加这行：保持worker进程不重启
