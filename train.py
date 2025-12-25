@@ -112,9 +112,7 @@ def main():
         model._ddp_params_and_buffers_to_ignore = ignored_buffers
         model = DistributedDataParallel(
             model, 
-            device_ids=[local_rank],
-            gradient_as_bucket_view=True,  # 减少梯度内存使用
-            static_graph=True              # 静态图优化
+            device_ids=[local_rank]
         )
 
     # 根据任务类型选择训练器
