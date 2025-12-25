@@ -34,8 +34,8 @@ trainer:
   warmup_steps: 500               # 增加warmup步数，更平滑
   max_steps: -1                    # -1表示使用num_epochs
 
-  batch_size: 64
-  gradient_accumulation_steps: 1
+  batch_size: 128
+  gradient_accumulation_steps: 2
 
   # 日志和保存
   eval_steps: 1000                  # 每多少步评估一次
