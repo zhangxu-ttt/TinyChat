@@ -46,6 +46,7 @@ trainer:
   gradient_checkpointing: false     # 显存充足，关闭checkpointing以换取更快速度
   max_grad_norm: 1.0                # 梯度裁剪
   seed: 42
+  enable_timing: true               # 启用性能计时（记录到WandB）
 
 
   

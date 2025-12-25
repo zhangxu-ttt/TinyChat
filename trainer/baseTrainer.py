@@ -1,4 +1,5 @@
 import os
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, Optional, Any
@@ -69,6 +70,9 @@ class BaseTrainer(ABC):
         self.epoch = 0
 
         self.num_epochs = config['trainer']['num_epochs']
+        
+        # 性能统计
+        self.enable_timing = config['trainer'].get('enable_timing', True)
 
     @abstractmethod
     def build_dataloader(self):
@@ -132,22 +136,57 @@ class BaseTrainer(ABC):
             self.dataloader.sampler.set_epoch(epoch)
 
             with self.create_progress_bar(self.dataloader, epoch, self.num_epochs) as pbar:
+                t_dataload_start = time.time()
+
                 for idx, batch in enumerate(pbar):
+                    # 数据加载计时
+                    if self.enable_timing and idx > 0:
+                        metrics['time/dataload_ms'] = (time.time() - t_dataload_start) * 1000
+                    
+                    if self.enable_timing:
+                        torch.cuda.synchronize()
+                        t_start = time.time()
+                    
+                    # 前向传播
+                    if self.enable_timing:
+                        t0 = time.time()
+                    
                     with torch.autocast(device_type='cuda', dtype=self.dtype):
                         step_metrics = self.train_step(batch)
                         loss = step_metrics['loss']
                         metrics.update(step_metrics)
+                    
+                    if self.enable_timing:
+                        torch.cuda.synchronize()
+                        metrics['time/forward_ms'] = (time.time() - t0) * 1000
 
                     # 反向传播
+                    if self.enable_timing:
+                        t0 = time.time()
+                    
                     self.scaler.scale(loss / self.gradient_accumulation_steps).backward()
+                    
+                    if self.enable_timing:
+                        torch.cuda.synchronize()
+                        metrics['time/backward_ms'] = (time.time() - t0) * 1000
 
                     # 累计梯度
+                    if self.enable_timing:
+                        t0 = time.time()
+                    
                     if (self.global_step + 1) % self.gradient_accumulation_steps == 0:
                         self.scaler.unscale_(self.optimizer)
                         torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                         self.scaler.step(self.optimizer)
                         self.scaler.update()
                         self.optimizer.zero_grad()
+                    
+                    if self.enable_timing:
+                        torch.cuda.synchronize()
+                        metrics['time/optimizer_ms'] = (time.time() - t0) * 1000
+                        metrics['time/total_ms'] = (time.time() - t_start) * 1000
+
+                        
 
                     self.log_metrics(metrics)
 
@@ -157,6 +196,9 @@ class BaseTrainer(ABC):
 
                     self.update_progress_bar(pbar, metrics)
                     self.global_step += 1
+
+                    if self.enable_timing:
+                        t_dataload_start = time.time()
 
                 if is_main_process():
                     self.save_checkpoint(tag=f"epoch-{self.epoch + 1}")
