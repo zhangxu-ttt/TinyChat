@@ -54,8 +54,8 @@ trainer:
 output:
   output_dir: "output/sft"
 #  save_total_limit: 5
-  # resume_from_checkpoint: "output/pretrain/epoch-3.pth"  # 从预训练模型开始微调
-  # continue_train: false  # false 表示只加载模型权重，从 epoch 0 开始训练
+  resume_from_checkpoint: "output/pretrain/epoch-4.pth"  # 从预训练模型开始微调
+  continue_train: false  # false 表示只加载模型权重，从 epoch 0 开始训练
   
 # WandB配置
 wandb:
