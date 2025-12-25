@@ -95,12 +95,7 @@ def main():
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print_rank0(f"Trainable Parameters: {trainable_params}")
 
-    model = torch.compile(
-        model,
-        mode="max-autotune",  # 最激进的优化
-        fullgraph=True,       # 尝试编译整个图
-        dynamic=False         # 禁用动态shape
-    )
+    model = torch.compile(model)
 
     if dist.is_initialized():
         # 忽略 RoPE 的预计算 cos/sin 缓存，这些在每个设备上独立计算且相同
@@ -117,7 +112,8 @@ def main():
 
     # 根据任务类型选择训练器
     if args.task_type == 'pretrain':
-        trainer = PreTrainer(
+        Trainer = PreTrainer
+        params = dict(
             model=model,
             tokenizer=tokenizer,
             config=config,
@@ -125,7 +121,8 @@ def main():
             device=device
         )
     elif args.task_type == 'sft':
-        trainer = SFTTrainer(
+        Trainer = SFTTrainer
+        params = dict(
             model=model,
             tokenizer=tokenizer,
             config=config,
@@ -133,13 +130,15 @@ def main():
             device=device
         )
     # elif args.task_type == 'dpo':
-    #     trainer = DPOTrainer(
+    #     Trainer = DPOTrainer
+    #     params = dict(
     #         config_path=args.config_path,
     #         local_rank=args.local_rank
     #     )
     else:
         raise ValueError(f"不支持的任务类型: {args.task_type}")
 
+    trainer = Trainer(**params)
     model = trainer.train()
 
 
