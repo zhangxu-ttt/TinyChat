@@ -84,14 +84,14 @@ class ChatMLDataset(Dataset):
         self.bos_token_id = self.tokenizer.bos_token_id
         self.eos_token_id = self.tokenizer.eos_token_id
 
-        # 初始化 assistant 起始标记的 token ids
-        self.answer_start_token = "<|im_start|>assistant\n"
-        self.assistant_start_ids = torch.tensor(
-            self.tokenizer.encode(self.answer_start_token, add_special_tokens=False),
-            dtype=torch.long
-        )
-        # im_end token id
-        self.im_end_id = self.tokenizer.encode("<|im_end|>", add_special_tokens=False)[0]
+        self.answer_start_token = f"<|im_start|>assistant\n"
+        self.answer_start_token_id_list = None
+        self.answer_end_token_id_list = [self.eos_token_id]
+        
+        # 初始化assistant起始token序列和im_end token ID（用于KMP匹配）
+        assistant_start_text = "<|im_start|>assistant\n"
+        self.assistant_start_ids = self.tokenizer.encode(assistant_start_text, add_special_tokens=False)
+        self.im_end_id = self.tokenizer.convert_tokens_to_ids("<|im_end|>")
 
     def load_data(self, data_path: Union[str, List[str]]) -> List[str]:
         if isinstance(data_path, str):
@@ -103,7 +103,7 @@ class ChatMLDataset(Dataset):
         return texts
 
     def process_sample(self, text):
-        """高效的样本处理"""
+        """使用KMP算法高效处理样本"""
         encoding = self.tokenizer(
             text,
             max_length=self.max_length,
@@ -113,23 +113,21 @@ class ChatMLDataset(Dataset):
         )
         
         input_ids = encoding.input_ids.squeeze()
-        
-        # 使用张量操作快速创建 loss_mask
         loss_mask = torch.zeros_like(input_ids, dtype=torch.bool)
         
-        # 方法1: 使用滑动窗口匹配（向量化）
-        assistant_len = len(self.assistant_start_ids)
+        # 使用KMP算法查找所有assistant起始位置（时间复杂度O(n+m)）
+        input_ids_list = input_ids.tolist()
+        match_positions = kmp_search(input_ids_list, self.assistant_start_ids)
         
-        # 查找所有 assistant 起始位置
-        for i in range(len(input_ids) - assistant_len + 1):
-            if torch.equal(input_ids[i:i+assistant_len], self.assistant_start_ids):
-                # 从这个位置开始找到下一个 im_end
-                start_pos = i + assistant_len
-                end_positions = (input_ids[start_pos:] == self.im_end_id).nonzero(as_tuple=True)[0]
-                
-                if len(end_positions) > 0:
-                    end_pos = start_pos + end_positions[0].item()
-                    loss_mask[start_pos:end_pos+1] = True
+        # 为每个匹配位置设置loss_mask
+        for match_pos in match_positions:
+            start_pos = match_pos + len(self.assistant_start_ids)
+            # 查找下一个im_end位置
+            end_positions = (input_ids[start_pos:] == self.im_end_id).nonzero(as_tuple=True)[0]
+            
+            if len(end_positions) > 0:
+                end_pos = start_pos + end_positions[0].item()
+                loss_mask[start_pos:end_pos+1] = True
         
         x = input_ids[:-1]
         y = input_ids[1:]
