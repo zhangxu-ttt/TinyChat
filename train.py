@@ -18,12 +18,6 @@ from trainer.sftTrainer import SFTTrainer
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-# ===== 性能优化配置 =====
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
-torch.backends.cudnn.benchmark = True
-# ======================
-
 def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser()
