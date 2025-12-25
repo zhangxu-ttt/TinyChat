@@ -51,7 +51,7 @@ class BaseTrainer(ABC):
             model.parameters(), 
             lr=float(lr),
             weight_decay=config['trainer']['weight_decay'],
-            fused=True  # 使用fused kernel加速
+            fused=(self.dtype != torch.float16)  # 使用fused kernel加速
         )
 
         self.logging_steps = config['trainer']['logging_steps']
