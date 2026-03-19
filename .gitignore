@@ -8,3 +8,5 @@
 /output/pretrain/
 /conver_pth_to_hf.py
 /hugging_face/
+/output/sft/epoch-2.pth
+/output/sft/

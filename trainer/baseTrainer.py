@@ -197,7 +197,7 @@ class BaseTrainer(ABC):
 
                     # 定期保存模型
                     if (self.global_step + 1) % self.save_steps == 0:
-                        self.save_checkpoint(tag=f"checkpoint-{self.global_step}")
+                        self.save_checkpoint(tag=f"checkpoint-{self.global_step + 1}")
 
                     self.update_progress_bar(pbar, metrics)
                     self.global_step += 1

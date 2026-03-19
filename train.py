@@ -13,8 +13,7 @@ from transformers import AutoTokenizer
 
 from utils import set_seed, print_rank0, is_main_process, init_distributed_train
 from model import TransformerModel, ModelConfig
-from trainer.preTrainer import PreTrainer
-from trainer.sftTrainer import SFTTrainer
+
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -106,6 +105,7 @@ def main():
 
     # 根据任务类型选择训练器
     if args.task_type == 'pretrain':
+        from trainer.preTrainer import PreTrainer
         Trainer = PreTrainer
         params = dict(
             model=model,
@@ -115,6 +115,7 @@ def main():
             device=device
         )
     elif args.task_type == 'sft':
+        from trainer.sftTrainer import SFTTrainer
         Trainer = SFTTrainer
         params = dict(
             model=model,
@@ -123,12 +124,16 @@ def main():
             local_rank=local_rank,
             device=device
         )
-    # elif args.task_type == 'dpo':
-    #     Trainer = DPOTrainer
-    #     params = dict(
-    #         config_path=args.config_path,
-    #         local_rank=args.local_rank
-    #     )
+    elif args.task_type == 'dpo':
+        from trainer.dpoTrainer import DPOTrainer
+        Trainer = DPOTrainer
+        params = dict(
+            model=model,
+            tokenizer=tokenizer,
+            config=config,
+            local_rank=local_rank,
+            device=device
+        )
     else:
         raise ValueError(f"不支持的任务类型: {args.task_type}")
 

@@ -37,7 +37,7 @@ trainer:
   batch_size: 128
   gradient_accumulation_steps: 2
 
-  # 日志和保存
+  # 日志和保存,
   eval_steps: 1000                  # 每多少步评估一次
   save_steps: 10000                 # 每多少步保存一次
   logging_steps: 1                  # 每多少步记录日志
